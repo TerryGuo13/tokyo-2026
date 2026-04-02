@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>東京X粗花XGO：質感散策互動資訊圖表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Noto+Sans+TC:wght@300;400;700&display=swap');
+        
+        :root {
+            --midnight-bg: #0A0F1C;
+            --midnight-panel: rgba(15, 23, 42, 0.65);
+            /* 質感玫瑰金色調 */
+            --rosegold-light: #F4DCD6;
+            --rosegold-main: #D49A89;
+            --rosegold-dark: #B56A5C;
+            --text-main: #F9F6F6;
+            --text-muted: #94A3B8;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--midnight-bg);
+            background-image: radial-gradient(circle at top right, #1A2340 0%, #0A0F1C 60%);
+            background-attachment: fixed;
+            color: var(--text-main);
+        }
+
+        h1, h2, h3, h4, h5, .serif {
+            font-family: 'Noto Serif TC', serif;
+        }
+
+        .text-rosegold-gradient {
+            background: linear-gradient(135deg, var(--rosegold-light), var(--rosegold-main), var(--rosegold-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .border-rosegold {
+            border-color: var(--rosegold-main);
+        }
+
+        .bg-rosegold {
+            background-color: var(--rosegold-main);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        .glass-panel {
+            background: var(--midnight-panel);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(212, 154, 137, 0.2);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .nav-glass {
+            background: rgba(10, 15, 28, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(212, 154, 137, 0.2);
+        }
+
+        .timeline-line {
+            position: absolute;
+            left: 1.25rem;
+            top: 2rem;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--rosegold-light) 0%, var(--rosegold-dark) 100%);
+            opacity: 0.4;
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(212, 154, 137, 0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(212, 154, 137, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(212, 154, 137, 0); }
+        }
+
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(8vh);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+            will-change: opacity, visibility;
+        }
+        
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: none;
+        }
+
+        /* Tabs Styles */
+        .tab-btn {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Checklist Styles */
+        .check-item input:checked + div {
+            text-decoration: line-through;
+            opacity: 0.4;
+        }
+        .check-item input:checked ~ .check-box {
+            background-color: var(--rosegold-main);
+            border-color: var(--rosegold-main);
+        }
+        .check-item input:checked ~ .check-box::after {
+            content: '✓';
+            color: #0A0F1C;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-[#D49A89] selection:text-[#0A0F1C] pb-20 relative">
+
+    <!-- Chosen Palette: Midnight Blue & Rose Gold (Base: #0A0F1C, Accents: #D49A89, #F4DCD6) -->
+    <!-- Application Structure Plan: Restored tabbed daily navigation to avoid scrolling fatigue. Sticky nav for top-level sections. Theming updated to Premium Rose Gold & Midnight. Validated external Google Map links. -->
+    <!-- Visualization & Content Choices: 1. Trip Composition -> Donut Chart (Chart.js) updated with Rose Gold hues. 2. Daily Itinerary -> HTML/Tailwind Timeline filtered via JS tabs (NO SVG). 3. Interactive Checklist -> Styled checkboxes matching the Rose Gold theme. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <nav class="fixed top-0 left-0 w-full z-50 nav-glass transition-all duration-300" id="navbar">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="font-bold serif tracking-widest text-rosegold-gradient">TOKYO <span class="text-white">2026</span></div>
+            <div class="hidden md:flex gap-6 text-sm font-bold text-[var(--rosegold-light)] opacity-80">
+                <a href="#overview" class="hover:text-white transition-colors">旅程分析</a>
+                <a href="#timeline" class="hover:text-white transition-colors">每日動態</a>
+                <a href="#intel" class="hover:text-white transition-colors">行前筆記</a>
+            </div>
+            <a href="#timeline" class="md:hidden bg-[var(--rosegold-main)] text-[#0A0F1C] px-4 py-2 rounded-full text-xs font-bold">查看行程</a>
+        </div>
+    </nav>
+
+    <header class="w-full pt-32 pb-16 px-6 relative overflow-hidden fade-in-section is-visible">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--rosegold-light)] via-[var(--rosegold-main)] to-[var(--rosegold-dark)]"></div>
+        <div class="max-w-6xl mx-auto text-center relative z-10">
+            <h2 class="text-[var(--rosegold-main)] tracking-[0.3em] text-xs md:text-sm font-bold mb-6 uppercase">Exclusive Sakura Journey</h2>
+            <h1 class="text-5xl md:text-7xl lg:text-8xl font-black serif text-rosegold-gradient mb-6 leading-tight drop-shadow-lg">
+                東京X粗花XGO
+            </h1>
+            <p class="text-lg md:text-xl text-[var(--text-muted)] max-w-2xl mx-auto font-light leading-relaxed mb-10">
+                這是一份專為追求品味與舒適所設計的四天三夜東京之旅。巧妙平衡了賞櫻名所的浪漫、寶可夢中心的熱血，以及極致的質感美食饗宴。
+            </p>
+            
+            <div class="flex flex-wrap justify-center gap-3 md:gap-6">
+                <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-2">
+                    <span class="text-2xl">🌸</span>
+                    <span class="font-bold text-[var(--rosegold-light)] text-sm">3大賞櫻聖地</span>
+                </div>
+                <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-2">
+                    <span class="text-2xl">🎮</span>
+                    <span class="font-bold text-[var(--rosegold-light)] text-sm">3大寶可夢中心</span>
+                </div>
+                <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-2">
+                    <span class="text-2xl">🥩</span>
+                    <span class="font-bold text-[var(--rosegold-light)] text-sm">6間嚴選名店</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 md:px-6">
+        
+        <section id="overview" class="mb-24 pt-12 fade-in-section">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl md:text-4xl serif font-bold text-white mb-4">旅程活動佔比分析</h3>
+                <p class="text-[var(--text-muted)] max-w-2xl mx-auto text-sm md:text-base">宏觀檢視本次行程的結構，確認觀光、美食與購物的完美平衡，確保行程豐富而不具壓迫感。</p>
+            </div>
+            
+            <div class="glass-panel rounded-3xl p-6 md:p-12 flex flex-col md:flex-row items-center gap-10">
+                <div class="w-full md:w-1/2">
+                    <div class="chart-container">
+                        <canvas id="activityChart"></canvas>
+                    </div>
+                </div>
+                <div class="w-full md:w-1/2 space-y-8">
+                    <div class="group">
+                        <h4 class="text-xl md:text-2xl font-bold text-white mb-3 flex items-center gap-3 transition-colors group-hover:text-[var(--rosegold-light)]">
+                            <span class="w-4 h-4 rounded-full bg-[var(--rosegold-light)] inline-block shadow-[0_0_10px_rgba(244,220,214,0.5)]"></span> 質感美食 (38%)
+                        </h4>
+                        <p class="text-sm md:text-base text-[var(--text-muted)] leading-relaxed pl-7 border-l-2 border-[var(--midnight-panel)] group-hover:border-[var(--rosegold-light)] transition-colors">從井泉豬排、百年並木藪蕎麥、高級和牛 Ushigoro 到森林系早午餐 Ivy Place，餐飲選擇以「精緻、小份量、高質感」為核心，完全貼合女友胃口。</p>
+                    </div>
+                    <div class="group">
+                        <h4 class="text-xl md:text-2xl font-bold text-white mb-3 flex items-center gap-3 transition-colors group-hover:text-[var(--rosegold-main)]">
+                            <span class="w-4 h-4 rounded-full bg-[var(--rosegold-main)] inline-block shadow-[0_0_10px_rgba(212,154,137,0.5)]"></span> 景點與賞櫻 (34%)
+                        </h4>
+                        <p class="text-sm md:text-base text-[var(--text-muted)] leading-relaxed pl-7 border-l-2 border-[var(--midnight-panel)] group-hover:border-[var(--rosegold-main)] transition-colors">精心挑選淺草寺夜櫻、新宿御苑大草坪、明治神宮森林與目黑川櫻吹雪，兼具熱鬧與靜謐的文化洗禮。</p>
+                    </div>
+                    <div class="group">
+                        <h4 class="text-xl md:text-2xl font-bold text-white mb-3 flex items-center gap-3 transition-colors group-hover:text-[var(--rosegold-dark)]">
+                            <span class="w-4 h-4 rounded-full bg-[var(--rosegold-dark)] inline-block shadow-[0_0_10px_rgba(181,106,92,0.5)]"></span> 購物與寶可夢 (28%)
+                        </h4>
+                        <p class="text-sm md:text-base text-[var(--text-muted)] leading-relaxed pl-7 border-l-2 border-[var(--midnight-panel)] group-hover:border-[var(--rosegold-dark)] transition-colors">網羅晴空塔、日本橋、澀谷三大寶可夢中心，並將繁重的大型採購安排在最適當的時段與動線上。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="timeline" class="mb-24 pt-12 fade-in-section">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl md:text-4xl serif font-bold text-white mb-4">每日動態時刻表</h3>
+                <p class="text-[var(--text-muted)] max-w-2xl mx-auto text-sm md:text-base">完整呈現每日所有動線與<span class="text-[var(--rosegold-main)] font-bold">深度注意事項</span>。點擊分頁切換日期，所有地標皆附帶有效的一鍵導航功能。</p>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="flex overflow-x-auto scroll-hide gap-4 justify-start md:justify-center mb-10 px-2 py-2" id="day-tabs">
+                <!-- JS will populate tabs -->
+            </div>
+
+            <div class="glass-panel rounded-3xl p-6 md:p-12 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[var(--rosegold-dark)]/10 to-transparent rounded-bl-full pointer-events-none"></div>
+                <div class="timeline-line"></div>
+                <div id="timeline-content" class="space-y-12 relative z-10 pl-6 md:pl-12 min-h-[400px]">
+                    <!-- JavaScript 將在這裡渲染對應的行程 -->
+                </div>
+            </div>
+        </section>
+
+        <section id="intel" class="mb-12 pt-12 fade-in-section">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl md:text-4xl serif font-bold text-white mb-4">行前戰略筆記</h3>
+                <p class="text-[var(--text-muted)] max-w-2xl mx-auto text-sm md:text-base">確保旅途順暢無阻的關鍵提醒，以及互動式打包清單，幫助您完美備戰。</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-panel p-8 rounded-3xl hover:-translate-y-1 transition-transform">
+                        <div class="text-4xl mb-5">📱</div>
+                        <h4 class="text-xl font-bold text-[var(--rosegold-light)] mb-3">數位交通卡</h4>
+                        <p class="text-sm text-[var(--text-muted)] leading-relaxed">實體 Suica 卡停售中。請直接在 iPhone 錢包加入「Suica」或「Pasmo」數位卡，並綁定 Apple Pay 加值，進出閘門與超商付款最快速。</p>
+                    </div>
+                    
+                    <div class="glass-panel p-8 rounded-3xl hover:-translate-y-1 transition-transform">
+                        <div class="text-4xl mb-5">🧥</div>
+                        <h4 class="text-xl font-bold text-[var(--rosegold-light)] mb-3">溫差與穿著</h4>
+                        <p class="text-sm text-[var(--text-muted)] leading-relaxed">4月初東京清晨/深夜約 10-12 度，白晝約 18-22 度。「洋蔥式穿法」是關鍵。特別在 Ivy Place 戶外用餐時需備薄外套。</p>
+                    </div>
+
+                    <div class="glass-panel p-8 rounded-3xl hover:-translate-y-1 transition-transform">
+                        <div class="text-4xl mb-5">🛂</div>
+                        <h4 class="text-xl font-bold text-[var(--rosegold-light)] mb-3">退稅必備</h4>
+                        <p class="text-sm text-[var(--text-muted)] leading-relaxed">於阿美橫町或唐吉訶德進行免稅購物結帳時，務必攜帶「護照正本」。手機翻拍照片無法辦理 10% 退稅手續。</p>
+                    </div>
+
+                    <div class="glass-panel p-8 rounded-3xl hover:-translate-y-1 transition-transform relative overflow-hidden">
+                        <div class="absolute -right-4 -bottom-4 text-8xl opacity-10">🧳</div>
+                        <div class="text-4xl mb-5 relative z-10">🧳</div>
+                        <h4 class="text-xl font-bold text-[var(--rosegold-light)] mb-3 relative z-10">行李轉運術</h4>
+                        <p class="text-sm text-[var(--text-muted)] leading-relaxed relative z-10">Day 3 若不想提大行李轉乘地鐵，建議前一晚請上野飯店利用「宅急便」寄送至澀谷飯店，單件約 2,000 日圓，大幅節省體力。</p>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-[var(--rosegold-dark)] to-[#4A2E2A] p-8 rounded-3xl shadow-xl text-white relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-bl-full"></div>
+                    <h4 class="text-2xl font-bold mb-6 serif flex items-center gap-3 relative z-10">
+                        <span>✓</span> 出發確認清單
+                    </h4>
+                    <p class="text-white/80 text-sm mb-6 relative z-10">點擊項目完成勾選，確保萬無一失。</p>
+                    <div class="space-y-4 relative z-10">
+                        <label class="check-item flex items-center gap-4 cursor-pointer group">
+                            <input type="checkbox" class="hidden">
+                            <div class="check-box w-6 h-6 rounded-md border-2 border-white/50 relative transition-colors group-hover:border-white bg-white/10"></div>
+                            <div class="text-sm font-bold text-white transition-all">護照正本 (效期 > 6個月)</div>
+                        </label>
+                        <label class="check-item flex items-center gap-4 cursor-pointer group">
+                            <input type="checkbox" class="hidden">
+                            <div class="check-box w-6 h-6 rounded-md border-2 border-white/50 relative transition-colors group-hover:border-white bg-white/10"></div>
+                            <div class="text-sm font-bold text-white transition-all">Visit Japan Web 填寫</div>
+                        </label>
+                        <label class="check-item flex items-center gap-4 cursor-pointer group">
+                            <input type="checkbox" class="hidden">
+                            <div class="check-box w-6 h-6 rounded-md border-2 border-white/50 relative transition-colors group-hover:border-white bg-white/10"></div>
+                            <div class="text-sm font-bold text-white transition-all">iPhone 綁定 Suica/Pasmo</div>
+                        </label>
+                        <label class="check-item flex items-center gap-4 cursor-pointer group">
+                            <input type="checkbox" class="hidden">
+                            <div class="check-box w-6 h-6 rounded-md border-2 border-white/50 relative transition-colors group-hover:border-white bg-white/10"></div>
+                            <div class="text-sm font-bold text-white transition-all">Ushigoro & Ivy Place 訂位代碼</div>
+                        </label>
+                        <label class="check-item flex items-center gap-4 cursor-pointer group">
+                            <input type="checkbox" class="hidden">
+                            <div class="check-box w-6 h-6 rounded-md border-2 border-white/50 relative transition-colors group-hover:border-white bg-white/10"></div>
+                            <div class="text-sm font-bold text-white transition-all">日幣現鈔 (備用)</div>
+                        </label>
+                        <label class="check-item flex items-center gap-4 cursor-pointer group">
+                            <input type="checkbox" class="hidden">
+                            <div class="check-box w-6 h-6 rounded-md border-2 border-white/50 relative transition-colors group-hover:border-white bg-white/10"></div>
+                            <div class="text-sm font-bold text-white transition-all">好走的運動鞋與薄外套</div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="mt-12 border-t border-[var(--midnight-panel)] py-10 text-center">
+        <p class="text-[var(--rosegold-main)] text-sm font-bold tracking-widest uppercase mb-2">Tokyo X Cuhua X GO</p>
+        <p class="text-[var(--text-muted)] text-xs">Crafted for a Perfect Journey</p>
+    </footer>
+
+    <script>
+        const itineraryData = [
+            {
+                day: 1,
+                date: "04/05",
+                weekday: "週日",
+                title: "江戶風情與上野巡禮",
+                events: [
+                    { time: "13:30", title: "飯店寄放行李", location: "上野金屋酒店", link: "https://www.google.com/maps/dir/?api=1&destination=Ueno+Kanaya+Hotel", type: "logistics", icon: "🏨", note: "注意：15:00 才能正式入房。請在此整理隨身小包，將護照與貴重物品帶在身上，解放雙手開始行程。" },
+                    { time: "14:00", title: "午餐：井泉豬排", location: "井泉 本店", link: "https://www.google.com/maps/dir/?api=1&destination=Isen+Honten+Ueno", type: "food", icon: "🍱", note: "這間老字號的豬排口感極軟，夾筷即斷。店內空間較小，這個時段抵達通常能避開最尖峰的人潮。" },
+                    { time: "15:00", title: "淺草寺賞櫻", location: "淺草寺", link: "https://www.google.com/maps/dir/?api=1&destination=Senso-ji", type: "sightseeing", icon: "🌸", note: "櫻花季的週日人潮極多！建議直接往「二天門」方向走，那邊櫻花較密集且人稍微少一些，拍照更好看。" },
+                    { time: "16:00", title: "晚餐：並木藪蕎麥", location: "並木藪蕎麥", link: "https://www.google.com/maps/dir/?api=1&destination=Namiki+Yabu+Soba", type: "food", icon: "🍜", note: "【高風險防雷】這家老饕名店若麵條賣完會直接打烊！16:00 抵達是最佳保險時間，確保絕對吃得到。", isWarning: true },
+                    { time: "17:00", title: "晴空塔寶可夢", location: "Pokemon Center Skytree", link: "https://www.google.com/maps/dir/?api=1&destination=Pokemon+Center+Skytree+Town", type: "shopping", icon: "⚡", note: "位於晴空塔 4 樓，一定要尋找「抱著晴空塔的皮卡丘」限定周邊。建議在此快閃 1 小時內完成採購。" },
+                    { time: "18:15", title: "阿美橫町購物", location: "阿美橫町", link: "https://www.google.com/maps/dir/?api=1&destination=Ameyoko", type: "shopping", icon: "🛍️", note: "【時間陷阱】多數藥妝店在 20:00~20:30 就會打烊，此時段是最後採買黃金期，請準備好護照以便退稅。" }
+                ]
+            },
+            {
+                day: 2,
+                date: "04/06",
+                weekday: "週一",
+                title: "銀座購物與東京車站",
+                events: [
+                    { time: "11:30", title: "午餐方案一：銀座 伴助", location: "銀座 伴助", link: "https://www.google.com/maps/dir/?api=1&destination=Ginza+Bansuke", type: "food", icon: "🍱", note: "主打油脂豐富的頂級一夜干，非常受歡迎的排隊名店，建議 11:30 左右抵達卡位避免久候。" },
+                    { time: "12:00", title: "午餐方案二：Imakatsu", location: "Imakatsu 銀座", link: "https://www.google.com/maps/dir/?api=1&destination=Imakatsu+Ginza", type: "food", icon: "🍗", note: "若伴助人潮過多，這間備案以極致軟嫩的雞柳聞名，同樣是銀座區不可錯過的質感美食選擇。" },
+                    { time: "14:00", title: "日本橋寶可夢", location: "Pokemon Center DX", link: "https://www.google.com/maps/dir/?api=1&destination=Pokemon+Center+Tokyo+DX", type: "shopping", icon: "⚡", note: "這是最具傳統和風氣息的分店。就算沒有預約到寶可夢咖啡廳，外牆的歷史進化展示區也非常值得拍照留念。" },
+                    { time: "16:00", title: "根室花丸抽籤", location: "根室花丸 KITTE", link: "https://www.google.com/maps/dir/?api=1&destination=Nemuro+Hanamaru+KITTE", type: "food", icon: "🍣", note: "【停損點啟動】抽籤後若發現前面超過 50 組，代表需等候超過 2 小時。請不要浪費時間，果斷執行拉麵備案！", isWarning: true },
+                    { time: "18:00", title: "拉麵備案", location: "天空之色拉麵", link: "https://www.google.com/maps/dir/?api=1&destination=Soranoiro+NIPPON", type: "food", icon: "🍜", note: "位於東京車站拉麵街內。以健康清爽的湯頭聞名（也有肉類拉麵），非常適合走了一天後不想吃太油膩的腸胃。" },
+                    { time: "20:30", title: "澀谷唐吉訶德", location: "MEGA 唐吉訶德 澀谷", link: "https://www.google.com/maps/dir/?api=1&destination=MEGA+Don+Quijote+Shibuya", type: "shopping", icon: "🛒", note: "這是全東京最大、品項最齊全的 MEGA 本店，24小時營業。請在這裡把需要的大件零食、伴手禮一次買齊。" }
+                ]
+            },
+            {
+                day: 3,
+                date: "04/07",
+                weekday: "週二",
+                title: "質感散步與和牛燒肉",
+                events: [
+                    { time: "10:00", title: "澀谷飯店寄放", location: "澀谷東急REI", link: "https://www.google.com/maps/dir/?api=1&destination=Shibuya+Tokyu+REI+Hotel", type: "logistics", icon: "🏨", note: "從上野搭地鐵過來約 30 分鐘。盡早把行李安頓好，後續在表參道與澀谷一帶才能完全解放雙手，輕鬆散步。" },
+                    { time: "11:30", title: "新宿御苑賞櫻", location: "新宿御苑", link: "https://www.google.com/maps/dir/?api=1&destination=Shinjuku+Gyoen", type: "sightseeing", icon: "🌸", note: "【入園必看】櫻花季的高峰日（含週末與特定平日）會實施「事前預約制」，請務必在出發前一個月緊盯官網公告。", isWarning: true },
+                    { time: "13:30", title: "明治神宮散步", location: "明治神宮", link: "https://www.google.com/maps/dir/?api=1&destination=Meiji+Jingu", type: "sightseeing", icon: "⛩️", note: "為保護雙腳，請穿好走的鞋（參道全是碎石路）。由原宿站方向進入主殿約需 15 分鐘，是極佳的芬多精體驗。" },
+                    { time: "16:30", title: "澀谷寶可夢", location: "Pokemon Center Shibuya", link: "https://www.google.com/maps/dir/?api=1&destination=Pokemon+Center+Shibuya", type: "shopping", icon: "⚡", note: "位於潮流百貨 Parco 6 樓，門口巨大的「培育槽超夢」是必拍亮點。同樓層還有任天堂與 Capcom 專賣店。" },
+                    { time: "20:30", title: "豪華和牛晚餐", location: "Ushigoro 表參道", link: "https://www.google.com/maps/dir/?api=1&destination=Yakiniku+Ushigoro+Omotesando", type: "food", icon: "🥩", note: "【已訂位私人包廂】今晚的最高潮！請享受專人服務的極品黑毛和牛。服裝建議 Smart Casual，展現大人的優雅。" }
+                ]
+            },
+            {
+                day: 4,
+                date: "04/08",
+                weekday: "週三",
+                title: "中目黑與優雅歸途",
+                events: [
+                    { time: "10:30", title: "中目黑賞櫻", location: "目黑川", link: "https://www.google.com/maps/dir/?api=1&destination=Meguro+River+Cherry+Blossoms", type: "sightseeing", icon: "🌸", note: "若幸運遇到櫻吹雪階段，河面會鋪滿粉紅色的花筏，非常浪漫。請牽好伴侶的手，盡情享受最後的春櫻時光。" },
+                    { time: "12:00", title: "森林系午餐", location: "Ivy Place 代官山", link: "https://www.google.com/maps/dir/?api=1&destination=Ivy+Place+Daikanyama", type: "food", icon: "🍽️", note: "【已訂位戶外區】在綠意盎然的 T-Site 享受慵懶的早午餐。四月微風可能偏涼，記得提醒女友帶件薄外套。" },
+                    { time: "16:44", title: "N'EX 歸途", location: "JR 澀谷站", link: "https://www.google.com/maps/dir/?api=1&destination=JR+Shibuya+Station", type: "logistics", icon: "🚆", note: "【迷宮警示】澀谷站前往 N'EX 月台（3、4號）的路途非常遙遠且複雜，請務必在 16:30 前進入車站閘門準備。", isWarning: true }
+                ]
+            }
+        ];
+
+        let currentDay = 1;
+
+        function initApp() {
+            renderTabs();
+            renderTimeline(currentDay);
+            initChart();
+            initObserver();
+        }
+
+        function renderTabs() {
+            const tabsContainer = document.getElementById('day-tabs');
+            tabsContainer.innerHTML = '';
+            
+            itineraryData.forEach(dayInfo => {
+                const btn = document.createElement('button');
+                const isActive = dayInfo.day === currentDay;
+                
+                btn.className = `tab-btn px-6 py-3 rounded-full border border-gray-600 font-bold whitespace-nowrap flex flex-col items-center min-w-[130px] 
+                    ${isActive ? 'bg-[var(--rosegold-main)] text-[#0A0F1C] border-[var(--rosegold-main)] shadow-[0_4px_15px_rgba(212,154,137,0.4)] transform -translate-y-1' : 'bg-transparent text-gray-400 hover:text-[var(--rosegold-light)] hover:border-[var(--rosegold-light)] hover:-translate-y-1'}`;
+                
+                btn.onclick = () => {
+                    currentDay = dayInfo.day;
+                    renderTabs();
+                    renderTimeline(currentDay);
+                };
+                
+                btn.innerHTML = `
+                    <span class="text-xs tracking-wider opacity-80 mb-1">DAY ${dayInfo.day}</span>
+                    <span class="text-lg">${dayInfo.date}</span>
+                `;
+                tabsContainer.appendChild(btn);
+            });
+        }
+
+        function renderTimeline(dayIndex) {
+            const container = document.getElementById('timeline-content');
+            container.innerHTML = '';
+            
+            const dayData = itineraryData.find(d => d.day === dayIndex);
+            if(!dayData) return;
+
+            // Render Day Header
+            const headerHTML = `
+                <div class="mb-8 pt-4 border-l-4 border-[var(--rosegold-main)] pl-4 animate-[fadeInUp_0.5s_ease_out]">
+                    <h4 class="text-3xl font-bold text-white serif tracking-wide">Day ${dayData.day} <span class="text-xl text-[var(--rosegold-dark)] ml-2">${dayData.date}</span></h4>
+                    <p class="text-[var(--rosegold-main)] font-bold tracking-widest text-sm mt-2">${dayData.title} (${dayData.weekday})</p>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', headerHTML);
+
+            // Render Events for the specific Day
+            dayData.events.forEach((event, index) => {
+                const warningClass = event.isWarning ? 'bg-red-900/20 border-l-4 border-[var(--rosegold-dark)] p-4 rounded-r-lg mt-4' : 'bg-[var(--midnight-bg)] p-4 rounded-lg mt-4 border border-gray-800/50';
+                const warningIcon = event.isWarning ? '<span class="text-[var(--rosegold-main)] font-bold mr-1">⚠️ 攻略提醒：</span>' : '<span class="text-gray-400 font-bold mr-1">💡 筆記：</span>';
+                
+                let dotColor = 'bg-gray-500';
+                if(event.type === 'food') dotColor = 'bg-[var(--rosegold-main)] pulse-dot';
+                if(event.type === 'sightseeing') dotColor = 'bg-[var(--rosegold-light)]';
+                if(event.type === 'shopping') dotColor = 'bg-[var(--rosegold-dark)]';
+                if(event.type === 'logistics') dotColor = 'bg-white';
+
+                const html = `
+                    <div class="relative group opacity-0 translate-y-6 transition-all duration-700 ease-out mb-10" style="animation: fadeInUp 0.6s ease-out forwards ${index * 0.1}s">
+                        <div class="absolute -left-[45px] md:-left-[55px] top-2 w-4 h-4 rounded-full ${dotColor} border-2 border-[var(--midnight-bg)] z-20 transition-transform group-hover:scale-125 shadow-[0_0_8px_rgba(255,255,255,0.3)]"></div>
+                        
+                        <div class="flex flex-col md:flex-row md:items-start gap-3 md:gap-6">
+                            <div class="w-24 shrink-0 pt-1 border-b border-gray-800 md:border-0 pb-2 md:pb-0">
+                                <span class="font-black text-2xl text-[var(--rosegold-light)] tracking-tighter">${event.time}</span>
+                            </div>
+                            
+                            <div class="flex-1 bg-[var(--midnight-panel)] p-6 rounded-2xl shadow-lg border border-[var(--rosegold-main)]/20 group-hover:shadow-[0_0_20px_rgba(212,154,137,0.15)] transition-all duration-300 group-hover:border-[var(--rosegold-main)]/60">
+                                <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-3">
+                                    <h5 class="text-xl font-bold text-white flex items-center gap-3">
+                                        <span class="text-2xl bg-[#0A0F1C] w-10 h-10 rounded-full flex items-center justify-center shadow-inner border border-gray-800">${event.icon}</span> 
+                                        ${event.title}
+                                    </h5>
+                                    <a href="${event.link}" target="_blank" rel="noopener noreferrer" class="text-sm font-bold text-[var(--midnight-bg)] bg-[var(--rosegold-main)] hover:bg-[var(--rosegold-light)] px-5 py-2 rounded-full flex items-center justify-center gap-2 transition-all w-full md:w-auto shadow-md">
+                                        一鍵導航 <span>↗</span>
+                                    </a>
+                                </div>
+                                <div class="text-[var(--rosegold-light)] text-sm font-bold mb-3 flex items-center gap-2 bg-white/5 inline-block px-3 py-1 rounded-md border border-white/10">
+                                    📍 ${event.location}
+                                </div>
+                                <div class="${warningClass}">
+                                    <p class="text-sm text-[var(--text-muted)] leading-relaxed">${warningIcon}${event.note}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        const centerTextPlugin = {
+            id: 'centerText',
+            beforeDraw: function(chart) {
+                if (chart.config.type !== 'doughnut') return;
+                var width = chart.width, height = chart.height, ctx = chart.ctx;
+                ctx.restore();
+                
+                var fontSize1 = (height / 200).toFixed(2);
+                ctx.font = "bold " + fontSize1 + "em 'Noto Serif TC'";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.textAlign = "center";
+                
+                var text1 = "質感", textX = width / 2, textY = height / 2 - 15;
+                ctx.fillText(text1, textX, textY);
+
+                var fontSize2 = (height / 250).toFixed(2);
+                ctx.font = fontSize2 + "em 'Noto Sans TC'";
+                ctx.fillStyle = "#D49A89";
+                var text2 = "黃金比例";
+                ctx.fillText(text2, textX, height / 2 + 15);
+                
+                ctx.save();
+            }
+        };
+
+        function initChart() {
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            Chart.register(centerTextPlugin);
+            
+            const rawLabels = ['美食饗宴 (6餐)', '景點賞櫻 (4處)', '購物血拼 (4次)'];
+            const processedLabels = rawLabels.map(label => {
+                if (label.length > 16) {
+                    const words = label.split(' ');
+                    let lines = [];
+                    let currentLine = '';
+                    words.forEach(word => {
+                        if ((currentLine + word).length > 16) {
+                            lines.push(currentLine.trim());
+                            currentLine = word + ' ';
+                        } else {
+                            currentLine += word + ' ';
+                        }
+                    });
+                    lines.push(currentLine.trim());
+                    return lines;
+                }
+                return label;
+            });
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: processedLabels,
+                    datasets: [{
+                        data: [38, 34, 28],
+                        backgroundColor: [
+                            '#F4DCD6', /* Rose Gold Light */
+                            '#D49A89', /* Rose Gold Main */
+                            '#B56A5C'  /* Rose Gold Dark */
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#0A0F1C',
+                        hoverOffset: 12
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    layout: {
+                        padding: 20
+                    },
+                    plugins: {
+                        legend: {
+                            display: false 
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(10, 15, 28, 0.95)',
+                            titleFont: { family: "'Noto Sans TC', sans-serif", size: 14 },
+                            bodyFont: { family: "'Noto Sans TC', sans-serif", size: 15, weight: 'bold' },
+                            titleColor: '#F4DCD6',
+                            bodyColor: '#FFFFFF',
+                            borderColor: 'rgba(212, 154, 137, 0.3)',
+                            borderWidth: 1,
+                            padding: 16,
+                            cornerRadius: 12,
+                            boxPadding: 8,
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const item = tooltipItems[0];
+                                    let label = item.chart.data.labels[item.dataIndex];
+                                    if (Array.isArray(label)) {
+                                        return label.join(' ');
+                                    } else {
+                                        return label;
+                                    }
+                                },
+                                label: function(context) {
+                                    return ' 佔比: ' + context.parsed + '%';
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true,
+                        duration: 1500,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        function initObserver() {
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.fade-in-section').forEach(section => {
+                observer.observe(section);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+    <style>
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</body>
+</html>
